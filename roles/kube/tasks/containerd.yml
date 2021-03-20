@@ -1,0 +1,5 @@
+---
+- name: Add containerd repository
+  become: yes
+  shell:
+    cmd: true

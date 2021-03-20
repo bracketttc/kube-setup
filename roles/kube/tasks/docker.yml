@@ -1,0 +1,38 @@
+---
+- name: Enable Red Hat repos
+  become: yes
+  block:
+    - name: Enable Red Hat repos
+      community.general.rhsm_repository:
+        name:
+          - rhel-7-server-extras-rpms
+          - rhel-7-server-optional-rpms
+        state: enabled
+
+    - name: Install RHEL7 Server Docker
+      package:
+        name:
+          - docker
+        state: latest
+  when:
+    - ansible_distribution == 'RedHat'
+    - ansible_distribution_major_version == '7'
+
+- name: Install Docker components
+  become: yes
+  package:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - container-selinux
+    state: latest
+  when:
+    - not ansible_distribution == 'RedHat'
+
+- name: Start and enable docker service
+  become: yes
+  systemd:
+    name: docker
+    state: started
+    enabled: yes

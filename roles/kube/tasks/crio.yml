@@ -1,0 +1,11 @@
+---
+- name: Add CRI-O repository
+  become: yes
+  shell:
+    cmd: true
+
+- name: Install CRI-O runtime
+  become: yes
+  package:
+    name: cri-o
+    state: latest

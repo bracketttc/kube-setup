@@ -3,7 +3,6 @@
 Attempting to install Google's k8s on RHEL7.
 Following [this guide][installing-kubeadm].
 
-
 ## Requirements
 
 - Hashicorp Vagrant
