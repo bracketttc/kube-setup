@@ -96,3 +96,25 @@
     name: kubelet
     state: started
     enabled: yes
+
+- name: Initialize a Kubernetes cluster
+  become: yes
+  shell:
+    cmd: kubeadm init
+
+- name:
+  block:
+    - name: Create .kube dir
+      file:
+        path: "{{ ansible_env.HOME }}/.kube"
+        state: directory
+    - name: Copy config
+      become: yes
+      copy:
+        remote_src: yes
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ ansible_env.HOME }}/.kube/config"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+- import_tasks: cni.yml
