@@ -1,7 +1,7 @@
 # Kubernetes experimentation
 
 Attempting to install Google's k8s on RHEL7.
-Following [this guide][installing-kubeadm].
+Following [this guide][installing-kubeadm] as well as [this guide][calico-hard-way].
 
 ## Requirements
 
@@ -17,3 +17,4 @@ Following [this guide][installing-kubeadm].
 
 <!-- links -->
 [installing-kubeadm]: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+[calico-hard-way]: https://docs.projectcalico.org/getting-started/kubernetes/hardway/
