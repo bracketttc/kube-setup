@@ -1,123 +1,52 @@
 ---
 - name: Install Calico
   block:
+    - name: Download Tigera Operator
+      get_url:
+        url: "https://docs.projectcalico.org/manifests/tigera-operator.yaml"
+        dest: "{{ ansible_env.HOME }}/tigera-operator.yaml"
+
+    - name: Create Tigera Operator
+      community.kubernetes.k8s:
+        state: present
+        src: "{{ ansible_env.HOME }}/tigera-operator.yaml"
+
     - name: Download Custom Resource Definitions
       get_url:
-        url: "https://docs.projectcalico.org/manifests/crds.yaml"
-        dest: "~/calico-crds.yaml"
+        url: "https://docs.projectcalico.org/manifests/custom-resources.yaml"
+        dest: "{{ ansible_env.HOME }}/calico-custom-resources.yaml"
 
-    - name: Apply CRDs
+    - name: Insert Pod CIDR in Calico Custom Resources
+      lineinfile:
+        path: "{{ ansible_env.HOME }}/calico-custom-resources.yaml"
+        regexp: '^(.*cidr:).*'
+        backrefs: yes
+        line: '\1 10.10.0.0/16'
+        state: present
+
+    - name: Apply Calico Custom Resources
       community.kubernetes.k8s:
-        apply: yes
-        src: "~/calico-crds.yaml"
+        state: present
+        src: "{{ ansible_env.HOME }}/calico-custom-resources.yaml"
 
-    - name: Download calicoctl
+    - name: Wait for pods to come up
+      community.kubernetes.k8s_info:
+        kind: Pod
+        namespace: calico-system
+        wait: yes
+        wait_sleep: 1
+        field_selectors:
+          - status.phase=Running
+
+    #- name: Remove taint from master node
+      #command: kubectl taint nodes --all node-role.kubernetes.io/master-
+
+    - name: Download Calicoctl
       become: yes
       get_url:
-        url: https://github.com/projectcalico/calicoctl/release/download/v3.14.0/calicoctl
-        dest: /usr/local/bin/calicoctl
+        url: "https://github.com/projectcalico/calicoctl/releases/download/v3.19.1/calicoctl"
+        dest: "/usr/local/bin/kubectl-calico"
         mode: 755
-
-    - name: Copy pool spec
-      copy:
-        src: pool.yaml
-        dest: ~/pool.yaml
-
-    - name: Create pool
-      shell:
-        cmd: calicoctl create -f ~/pool.yaml
-
-    - name: Generate Calico CNI key
-      community.crypto.openssl_csr:
-        common_name: "calico-cni"
-        path: ~/cni.csr
-        privatekey_path: ~/cni.key
-
-    - name: Sign Calico CSR with Kubernetes Key
-      community.crypto.x509_certificate:
-        path: ~/cni.crt
-        privatekey_path: ~/cni.key
-        csr_path: ~/cni.csr
-        ownca_path: /etc/kubernetes/pki/ca.crt
-        ownca_privatekey_path: /etc/kubernetes/pki/ca.key
-        provider: ownca
-
-    - name: Get APISERVER value
-      shell:
-        cmd: "kubectl config view -o jsonpath='{.clusters[0].cluster.server}'"
-      register: apiserv
-
-    - name: Set cluster
-      shell:
-        cmd: kubectl config set-cluster kubernetes --certificate-authority=/etc/kubernetes/pki/ca.crt --embed-certs=true --server={{ apiserv.stdout }} --kubeconfig=cni.kubeconfig
-
-    - name: Set credentials
-      shell:
-        cmd: kubectl config set-credentials calico-cni --client-certificate=cni.crt --client-key=cni.key --embed-certs=true --kubeconfig=cni.kubeconfig
-
-    - name: Set context
-      shell:
-        cmd: kubectl config set-context default --cluster=kubernetes --user=calico-cni --kubeconfig=cni.kubeconfig
-
-    - name: Use context
-      shell:
-        cmd: kubectl config use-context default --kubeconfig=cni.kubeconfig
-
-    - name: Copy cluster role
-      copy:
-        src: calico-role.yaml
-        dest: ~/calico-role.yaml
-
-    - name: Apply Calico cluster role
-      shell:
-        cmd: kubectl apply -f ~/calico-role.yaml
-
-    - name: Bind Calico cluster role
-      shell:
-        cmd: kubectl create clusterrolebinding calico-cni --clusterrole=calico-cni --user=calico-cni
-
-    - name: Downlaod Calico CNI plugin
-      become: yes
-      get_url:
-        url: https://github.com/projectcalico/cni-plugin/releases/download/v3.14.0/calico-amd64
-        dest: /opt/cni/bin/calico
-        mode: 755
-
-    - name: Download Calico CNI plugin IPAM
-      become: yes
-      get_url:
-        url: https://github.com/projectcalico/cni-plugin/releases/download/v3.14.0/calico-ipam-amd64
-        dest: /opt/cni/bin/calico-ipam
-        mode: 755
-
-    - name: Create CNI config dir
-      become: yes
-      file:
-        path: "{{ item }}"
-        state: dir
-      with_items:
-        - /etc/cni
-        - /etc/cni/net.d
-
-    - name: Copy config
-      become: yes
-      copy:
-        remote_src: yes
-        src: ~/cni.kubeconfig
-        dest: /etc/cni/net.d/calico-kubeconfig
-        mode: 600
-
-    - name: Copy CNI config
-      become: yes
-      copy:
-        src: 10-calico.conflist
-        dest: /etc/cni/net.d/10-calico.conflist
-
-    - name: Restart kubelet
-      become: yes
-      systemd:
-        name: kubelet
-        state: restarted
 
   environment:
     KUBECONFIG: "~/.kube/config"
