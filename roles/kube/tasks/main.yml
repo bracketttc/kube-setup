@@ -126,3 +126,4 @@
     state: present
 
 - import_tasks: cni.yml
+- import_tasks: helm.yml
