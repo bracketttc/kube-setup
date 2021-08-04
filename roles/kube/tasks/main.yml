@@ -101,6 +101,7 @@
   become: yes
   shell:
     cmd: kubeadm init --pod-network-cidr=10.10.0.0/16
+    creates: /etc/kubernetes/admin.conf
 
 - name:
   block:
