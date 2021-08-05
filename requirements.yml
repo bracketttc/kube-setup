@@ -3,4 +3,5 @@ collections:
   - ansible.posix
   - community.crypto
   - community.general
-  - community.kubernetes
+  - name: community.kubernetes
+    version: '1.2.1'
