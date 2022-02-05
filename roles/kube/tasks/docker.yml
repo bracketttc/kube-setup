@@ -22,10 +22,8 @@
   become: yes
   package:
     name:
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io
-      - container-selinux
+      - docker.io
+      - containerd
     state: latest
   when:
     - not ansible_distribution == 'RedHat'

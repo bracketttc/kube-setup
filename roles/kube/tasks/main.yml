@@ -39,6 +39,7 @@
   ansible.posix.selinux:
     policy: targeted
     state: permissive
+  ignore_errors: true
 
 - name: Subscribe to Red Hat
   become: yes
@@ -49,6 +50,19 @@
     state: present
   when:
     - ansible_distribution == 'RedHat'
+
+- name: Update package metadata
+  become: yes
+  apt:
+    update_cache: yes
+  when:
+    - ansible_distribution == 'Debian'
+
+- name: Upgrade packages
+  become: yes
+  package:
+    name: '*'
+    state: latest
 
 - import_tasks: docker.yml
   when: container_runtime == 'docker'
@@ -65,6 +79,7 @@
     name: firewalld
     state: stopped
     enabled: no
+  ignore_errors: true
 
 - name: Add kubernetes yum repository
   become: yes
@@ -79,16 +94,34 @@
       - https://packages.cloud.google.com/yum/doc/yum-key.gpg
       - https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
     exclude: "kubelet kubeadm kubectl"
+  when:
+    - ansible_distribution == 'RedHat'
+
+- name: Add kubernetes apt repository
+  become: yes
+  block:
+    - name: Fetch Kubernetes GPG key
+      get_url:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        dest: /usr/share/keyrings/kubernetes-archive-keyring.gpg
+
+    - name: Add Kubernetes apt repository
+      apt_repository:
+        filename: kubernetes.list
+        repo: "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main"
+        state: present
+        update_cache: yes
+  when:
+    - ansible_distribution == 'Debian'
 
 - name: Install Kubernetes
   become: yes
-  yum:
+  package:
     name:
       - kubelet
       - kubeadm
       - kubectl
     state: present
-    disable_excludes: Kubernetes
 
 - name: Start Kubelet
   become: yes
@@ -118,12 +151,21 @@
         owner: "{{ ansible_user }}"
         group: "{{ ansible_user }}"
 
+- name: Install Python
+  become: yes
+  package:
+    name:
+      - python3
+      - python3-pip
+
 - name: Install OpenShift bindings for Python
   become: yes
   yum:
     name:
       - python-openshift
     state: present
+  when:
+    - ansible_distribution == 'RedHat'
 
 - import_tasks: cni.yml
 - import_tasks: helm.yml

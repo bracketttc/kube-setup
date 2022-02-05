@@ -1,4 +1,10 @@
 ---
+- name: Install kubernetes python module
+  become: yes
+  pip:
+    name: kubernetes
+    state: latest
+
 - name: Install Calico
   block:
     - name: Download Tigera Operator
@@ -7,7 +13,7 @@
         dest: "{{ ansible_env.HOME }}/tigera-operator.yaml"
 
     - name: Create Tigera Operator
-      community.kubernetes.k8s:
+      kubernetes.core.k8s:
         state: present
         src: "{{ ansible_env.HOME }}/tigera-operator.yaml"
 
@@ -25,12 +31,12 @@
         state: present
 
     - name: Apply Calico Custom Resources
-      community.kubernetes.k8s:
+      kubernetes.core.k8s:
         state: present
         src: "{{ ansible_env.HOME }}/calico-custom-resources.yaml"
 
     - name: Wait for pods to come up
-      community.kubernetes.k8s_info:
+      kubernetes.core.k8s_info:
         kind: Pod
         namespace: calico-system
         wait: yes
